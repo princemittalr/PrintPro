@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrintPro — Campus print shop counter</title>
+<meta name="description" content="PrintPro bills campus print jobs: student and faculty discounts, 18% GST, daily capacity checks, tokens and trays.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEFEA; --sheet:#FBFCF8; --ink:#1C1E22; --muted:#5E636B; --line:#CDD1CB;
+  --cyan:#00A0D6; --magenta:#D6006F; --yellow:#F5C400;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", Consolas, "Courier New", monospace;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--display);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img,svg{display:block}
+button,input{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+.wrap{width:min(1180px,100% - 48px);margin-inline:auto}
+.mono{font-family:var(--mono)}
+
+/* ---------- ink progress bar (CMYK) ---------- */
+.inkbar{position:fixed;inset:0 0 auto 0;height:4px;z-index:60;display:flex;pointer-events:none}
+.inkbar span{flex:1;transform-origin:left;transform:scaleX(0)}
+.inkbar span:nth-child(1){background:var(--cyan)}
+.inkbar span:nth-child(2){background:var(--magenta)}
+.inkbar span:nth-child(3){background:var(--yellow)}
+.inkbar span:nth-child(4){background:var(--ink)}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--paper) 82%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid transparent;transition:border-color .3s}
+nav.scrolled{border-color:var(--line)}
+nav .wrap{display:flex;align-items:center;gap:28px;height:68px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:750;font-size:20px;letter-spacing:-.02em;text-decoration:none}
+.reg{width:26px;height:26px;transition:transform .6s var(--ease)}
+.logo:hover .reg{transform:rotate(90deg)}
+nav ul{display:flex;gap:22px;list-style:none;margin-left:auto}
+nav ul a{text-decoration:none;color:var(--muted);font-size:15px;transition:color .2s}
+nav ul a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;border-radius:8px;padding:12px 20px;font-weight:600;font-size:15px;text-decoration:none;transition:transform .15s,background .2s,box-shadow .2s;white-space:nowrap}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn-ink{background:var(--ink);color:var(--sheet);box-shadow:3px 3px 0 var(--magenta)}
+.btn-ink:hover{box-shadow:5px 5px 0 var(--magenta);transform:translate(-1px,-1px)}
+.btn-line{background:transparent;border:1.5px solid var(--ink)}
+.btn-line:hover{background:var(--ink);color:var(--sheet)}
+.btn-ghost{background:transparent;color:var(--muted);padding:10px 12px}
+.btn-ghost:hover{color:var(--ink)}
+.btn[disabled]{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:calc(100vh - 68px);display:grid;align-items:center;padding:56px 0 40px;overflow:hidden}
+#halftone{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:end}
+.crop{position:absolute;width:22px;height:22px;border-color:var(--ink);opacity:.55}
+.crop.tl{top:24px;left:24px;border-top:1.5px solid;border-left:1.5px solid}
+.crop.tr{top:24px;right:24px;border-top:1.5px solid;border-right:1.5px solid}
+.crop.bl{bottom:24px;left:24px;border-bottom:1.5px solid;border-left:1.5px solid}
+.crop.br{bottom:24px;right:24px;border-bottom:1.5px solid;border-right:1.5px solid}
+h1.press{position:relative;font-size:clamp(52px,8.6vw,124px);line-height:.92;letter-spacing:-.045em;font-weight:800;font-variation-settings:"wdth" 82;isolation:isolate}
+h1.press .layer{position:absolute;inset:0;mix-blend-mode:multiply;pointer-events:none;transition:transform 1.3s var(--ease)}
+h1.press .c{color:var(--cyan);transform:translate(-10px,6px)}
+h1.press .m{color:var(--magenta);transform:translate(9px,-5px)}
+h1.press .y{color:var(--yellow);transform:translate(4px,9px)}
+h1.press .k{position:relative;color:var(--ink);opacity:0;transition:opacity .9s .5s}
+h1.press.registered .layer{transform:translate(0,0)}
+h1.press.registered .k{opacity:1}
+h1.press:hover .c{transform:translate(-2px,1px)}
+h1.press:hover .m{transform:translate(2px,-1px)}
+.lede{max-width:36ch;font-size:clamp(18px,1.6vw,21px);color:var(--muted);margin-top:28px}
+.hero-cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
+.ticket{background:var(--sheet);border:1px solid var(--line);padding:22px 22px 18px;position:relative;box-shadow:0 18px 40px -24px rgba(28,30,34,.35);transform:rotate(1.5deg)}
+.ticket::before{content:"";position:absolute;left:0;right:0;top:-8px;height:8px;background:radial-gradient(circle at 6px 8px,var(--sheet) 5px,transparent 5.5px) 0 0/12px 8px}
+.ticket h3{font-size:14px;color:var(--muted);font-weight:500;margin-bottom:10px}
+.ticket dl{display:grid;grid-template-columns:1fr auto;row-gap:10px;font-size:15px}
+.ticket dd{font-family:var(--mono);font-weight:600;text-align:right}
+.ticket .next{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);display:flex;align-items:baseline;justify-content:space-between}
+.ticket .next b{font-size:44px;line-height:1;letter-spacing:-.03em}
+.ticket .next span{font-size:14px;color:var(--muted)}
+
+/* ---------- service ribbon ---------- */
+.ribbon{background:var(--ink);color:var(--sheet);overflow:hidden;padding:14px 0;border-block:4px solid var(--yellow)}
+.ribbon-track{display:flex;gap:44px;width:max-content;animation:scroll 38s linear infinite}
+.ribbon:hover .ribbon-track{animation-play-state:paused}
+.ribbon-item{display:flex;align-items:center;gap:12px;white-space:nowrap;font-size:18px}
+.ribbon-item .id{font-family:var(--mono);color:var(--yellow);font-size:14px}
+.ribbon-item svg{width:16px;height:16px;opacity:.6}
+@keyframes scroll{to{transform:translateX(-50%)}}
+
+/* ---------- sections ---------- */
+section{padding:120px 0}
+.sec-head{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-bottom:56px}
+h2{font-size:clamp(38px,5vw,64px);line-height:1;letter-spacing:-.035em;font-weight:780;font-variation-settings:"wdth" 88}
+.sec-head p{color:var(--muted);max-width:46ch}
+
+/* ---------- services ---------- */
+.svc-list{border-top:1.5px solid var(--ink)}
+.svc{display:grid;grid-template-columns:70px 1.6fr 1fr 110px 2fr 70px;gap:20px;align-items:center;padding:20px 4px;border-bottom:1px solid var(--line);transition:background .2s}
+.svc:hover{background:var(--sheet)}
+.svc .id{font-family:var(--mono);font-weight:600;color:var(--muted)}
+.svc .name{font-weight:650;font-size:19px}
+.svc .cat{color:var(--muted);font-size:15px}
+.svc .price{font-family:var(--mono);font-weight:600}
+.meter{height:10px;background:var(--line);position:relative;overflow:hidden;border-radius:2px}
+.meter i{position:absolute;inset:0;background:var(--cyan);transform-origin:left;transform:scaleX(0);transition:transform 1.2s var(--ease)}
+.svc.low .meter i{background:var(--magenta)}
+.meter-label{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px}
+.status{font-family:var(--mono);font-size:13px;font-weight:600;padding:4px 8px;border-radius:3px;text-align:center;background:color-mix(in srgb,var(--cyan) 14%,transparent);color:#00698C}
+.svc.low .status{background:color-mix(in srgb,var(--magenta) 14%,transparent);color:var(--magenta)}
+.svc-head{color:var(--muted);font-size:14px;padding-block:12px;border-bottom:1px solid var(--line)}
+.svc-head:hover{background:none}
+
+/* ---------- counter ---------- */
+#counter{background:var(--sheet);border-block:1px solid var(--line)}
+.counter-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:start}
+.panel{display:flex;flex-direction:column;gap:30px}
+.step-title{display:flex;align-items:baseline;gap:12px;font-size:21px;font-weight:700;margin-bottom:14px}
+.step-title .n{font-family:var(--mono);font-size:14px;width:28px;height:28px;display:grid;place-items:center;border:1.5px solid var(--ink);border-radius:50%;flex:none;transform:translateY(-2px)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;color:var(--muted)}
+.input{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:12px 14px;font-size:17px;transition:border-color .2s,background .2s}
+.input:focus{outline:none;border-color:var(--ink);background:var(--sheet)}
+.input.bad{border-color:var(--magenta);animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.seg button{border:1.5px solid var(--line);background:var(--paper);border-radius:8px;padding:14px;text-align:left;cursor:pointer;transition:all .2s}
+.seg button b{display:block;font-size:17px}
+.seg button span{font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--sheet)}
+.seg button[aria-pressed="true"] span{color:#C9CDD3}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.chip{border:1.5px solid var(--line);background:var(--paper);border-radius:8px;padding:10px 12px;text-align:left;cursor:pointer;transition:border-color .2s,transform .15s}
+.chip:hover{border-color:var(--ink);transform:translateY(-2px)}
+.chip .id{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.chip b{display:block;font-size:14px;font-weight:600;line-height:1.25}
+.chip .p{font-family:var(--mono);font-size:13px}
+.chip.low{border-style:dashed}
+.add-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.hint{font-size:14px;color:var(--muted);margin-top:10px}
+.hint code{font-family:var(--mono);background:var(--paper);padding:1px 6px;border-radius:4px}
+.cart{border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
+.cart-empty{padding:26px;color:var(--muted);text-align:center;font-size:15px}
+.cart-row{display:grid;grid-template-columns:1fr auto auto;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center;animation:rowIn .35s var(--ease)}
+.cart-row:last-child{border-bottom:0}
+.cart-row .q{font-family:var(--mono);color:var(--muted);font-size:14px}
+.cart-row .amt{font-family:var(--mono);font-weight:600}
+.cart-row.out{animation:rowOut .3s var(--ease) forwards}
+@keyframes rowIn{from{opacity:0;transform:translateY(-8px)}}
+@keyframes rowOut{to{opacity:0;transform:translateX(30px)}}
+.cart-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--paper);gap:12px;flex-wrap:wrap}
+.cart-foot .est{font-size:14px;color:var(--muted)}
+.cart-foot .est b{font-family:var(--mono);color:var(--ink);font-size:18px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* printer */
+.printer-col{position:sticky;top:96px}
+.printer{background:var(--ink);border-radius:14px 14px 6px 6px;padding:18px 20px 0;color:#9AA0A8;position:relative;z-index:2;box-shadow:0 20px 40px -20px rgba(0,0,0,.5)}
+.printer-top{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.led{display:inline-flex;align-items:center;gap:8px}
+.led i{width:8px;height:8px;border-radius:50%;background:#3D4148}
+.printer.busy .led i{background:var(--yellow);box-shadow:0 0 10px var(--yellow);animation:blink .5s steps(2) infinite}
+.printer.done .led i{background:#3BD37A;box-shadow:0 0 10px #3BD37A}
+@keyframes blink{50%{opacity:.3}}
+.slot{height:14px;margin:14px -4px 0;background:#000;border-radius:3px 3px 0 0}
+.paper-out{position:relative;margin:0 14px;overflow:hidden;min-height:120px}
+.receipt{background:#FFFFFF;font-family:var(--mono);font-size:13px;line-height:1.6;color:#222;padding:20px 20px 26px;position:relative;transform:translateY(-102%)}
+.receipt.printing{animation:feed 2.4s steps(28) forwards}
+.receipt.shown{transform:none}
+@keyframes feed{to{transform:translateY(0)}}
+.receipt::after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;background:linear-gradient(-45deg,transparent 7px,#fff 7px) 0 0/14px 10px,linear-gradient(45deg,transparent 7px,#fff 7px) 0 0/14px 10px}
+.paper-out{padding-bottom:12px}
+.receipt .c{text-align:center}
+.receipt .h{font-weight:600;font-size:14px}
+.receipt .r{display:flex;justify-content:space-between;gap:10px}
+.receipt .dash{border-top:1px dashed #999;margin:8px 0}
+.receipt .tot{font-size:17px;font-weight:600}
+.receipt .tray{margin-top:10px;text-align:center;border:2px solid #222;padding:6px;font-weight:600}
+.printer-idle{color:var(--muted);text-align:center;padding:30px 10px;font-size:15px}
+
+/* trays */
+.trays{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px}
+.tray-box{border:1.5px solid var(--ink);border-top-width:6px;border-radius:0 0 8px 8px;padding:12px;min-height:150px;background:var(--paper)}
+.tray-box:nth-child(1){border-top-color:var(--cyan)}
+.tray-box:nth-child(2){border-top-color:var(--magenta)}
+.tray-box h4{display:flex;justify-content:space-between;font-size:15px;margin-bottom:10px}
+.tray-box h4 span{font-weight:400;color:var(--muted);font-size:13px}
+.tokens{display:flex;flex-direction:column-reverse;gap:6px}
+.tok{background:var(--sheet);border:1px solid var(--line);padding:6px 10px;font-size:13px;display:flex;justify-content:space-between;animation:drop .6s cubic-bezier(.3,1.5,.5,1)}
+.tok b{font-family:var(--mono)}
+@keyframes drop{from{opacity:0;transform:translateY(-40px) rotate(-6deg)}}
+
+/* ---------- billing explainer ---------- */
+.explain{display:grid;grid-template-columns:.9fr 1.1fr;gap:64px}
+.calc{position:sticky;top:120px;align-self:start;background:var(--sheet);border:1px solid var(--line);padding:30px;box-shadow:8px 8px 0 var(--ink)}
+.calc h3{font-size:15px;font-weight:500;color:var(--muted);margin-bottom:18px}
+.calc .line{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:18px;opacity:.35;transition:opacity .4s,transform .4s var(--ease)}
+.calc .line b{font-family:var(--mono)}
+.calc .line.on{opacity:1}
+.calc .line.focus{transform:translateX(8px)}
+.calc .line.final{border-bottom:0;font-size:26px;font-weight:750}
+.steps{display:flex;flex-direction:column}
+.step{min-height:62vh;display:flex;flex-direction:column;justify-content:center;padding:20px 0;opacity:.3;transition:opacity .4s}
+.step.on{opacity:1}
+.step .n{font-family:var(--mono);font-size:14px;color:var(--magenta);margin-bottom:12px}
+.step h3{font-size:clamp(28px,3vw,40px);letter-spacing:-.03em;line-height:1.05;margin-bottom:14px}
+.step p{color:var(--muted);max-width:44ch}
+.step .formula{margin-top:18px;font-family:var(--mono);font-size:15px;background:var(--sheet);border-left:4px solid var(--cyan);padding:12px 16px;max-width:44ch}
+
+/* ---------- find + report ---------- */
+.two{display:grid;grid-template-columns:.8fr 1.2fr;gap:48px;align-items:start}
+.find-box{background:var(--sheet);border:1px solid var(--line);padding:28px;border-radius:4px}
+.find-row{display:flex;gap:10px;margin-top:10px}
+#findResult{margin-top:22px}
+#findResult .receipt{transform:none;box-shadow:0 10px 30px -18px rgba(0,0,0,.4)}
+.msg{padding:14px 16px;border-left:4px solid var(--magenta);background:color-mix(in srgb,var(--magenta) 8%,var(--sheet));font-size:15px}
+.report{background:var(--ink);color:var(--sheet);padding:34px;border-radius:4px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding-bottom:26px;border-bottom:1px solid #3A3E45}
+.kpi .v{font-size:clamp(30px,3.4vw,44px);font-weight:750;letter-spacing:-.03em;line-height:1.05}
+.kpi .l{color:#A3A9B1;font-size:14px;margin-top:4px}
+.kpi.pop .v{font-size:clamp(20px,2vw,26px);line-height:1.2}
+.bars{margin-top:26px;display:flex;flex-direction:column;gap:12px}
+.bar{display:grid;grid-template-columns:170px 1fr 90px;gap:14px;align-items:center;font-size:14px}
+.bar .track{height:14px;background:#2C3036;border-radius:2px;overflow:hidden}
+.bar .fill{height:100%;background:var(--yellow);width:0;transition:width 1s var(--ease)}
+.bar.top .fill{background:var(--magenta)}
+.bar .num{font-family:var(--mono);text-align:right}
+.jobs-table{margin-top:28px;width:100%;border-collapse:collapse;font-size:14px}
+.jobs-table th{text-align:left;color:#A3A9B1;font-weight:500;padding:8px 6px;border-bottom:1px solid #3A3E45}
+.jobs-table td{padding:9px 6px;border-bottom:1px solid #2C3036}
+.jobs-table td.m{font-family:var(--mono)}
+.jobs-table tr{cursor:pointer}
+.jobs-table tbody tr:hover td{background:#25282D}
+.report-actions{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+.report .btn-line{border-color:var(--sheet);color:var(--sheet)}
+.report .btn-line:hover{background:var(--sheet);color:var(--ink)}
+.empty-dark{color:#A3A9B1;margin-top:24px;font-size:15px}
+
+/* ---------- tests ---------- */
+.tests{border-top:1.5px solid var(--ink)}
+.test{display:grid;grid-template-columns:60px 1.4fr 1fr 120px;gap:20px;padding:20px 4px;border-bottom:1px solid var(--line);align-items:center}
+.test .n{font-family:var(--mono);color:var(--muted)}
+.test .exp{font-family:var(--mono);font-size:14px}
+.test .res{font-family:var(--mono);font-size:14px;font-weight:600;text-align:right}
+.test .res.pass{color:#0E8A4A}
+.test .res.fail{color:var(--magenta)}
+.test .res.run{color:var(--muted)}
+.test-actions{margin-top:26px;display:flex;gap:16px;align-items:center}
+#testSummary{color:var(--muted)}
+
+/* ---------- footer ---------- */
+footer{padding:70px 0 50px;border-top:1px solid var(--line)}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:15px}
+.big-foot{font-size:clamp(60px,14vw,200px);font-weight:800;letter-spacing:-.06em;line-height:.8;color:transparent;-webkit-text-stroke:1.5px var(--line);margin-bottom:40px;font-variation-settings:"wdth" 78;user-select:none}
+
+/* ---------- toast ---------- */
+.toasts{position:fixed;right:20px;bottom:20px;z-index:80;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 40px))}
+.toast{background:var(--ink);color:var(--sheet);padding:14px 16px 14px 18px;border-radius:8px;font-size:15px;box-shadow:0 14px 30px -14px rgba(0,0,0,.5);border-left:5px solid #3BD37A;animation:tIn .4s var(--ease)}
+.toast.err{border-left-color:var(--magenta)}
+.toast.warn{border-left-color:var(--yellow)}
+.toast b{display:block;font-size:13px;font-family:var(--mono);color:#C9CDD3;font-weight:600;margin-bottom:2px}
+.toast.out{animation:tOut .3s forwards}
+.toast-act{display:block;margin-top:10px;background:var(--yellow);color:var(--ink);border:0;border-radius:6px;padding:8px 12px;font-weight:700;cursor:pointer}
+.toast-act:hover{filter:brightness(1.08)}
+.cart-warn{padding:10px 16px;background:color-mix(in srgb,var(--yellow) 22%,var(--sheet));font-size:14px;border-top:1px solid var(--line)}
+.cart-warn b{font-weight:700}
+@keyframes tIn{from{opacity:0;transform:translateY(16px)}}
+@keyframes tOut{to{opacity:0;transform:translateX(30px)}}
+
+/* ---------- reveal (used sparingly) ---------- */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:980px){
+  .hero .wrap,.counter-grid,.explain,.two,.sec-head{grid-template-columns:1fr}
+  .ticket{transform:none;max-width:420px}
+  .printer-col,.calc{position:relative;top:0}
+  .step{min-height:auto;opacity:1;padding:28px 0}
+  .svc{grid-template-columns:56px 1fr 90px 64px;row-gap:8px}
+  .svc .cat{display:none}.svc .cap{grid-column:2/-1}
+  .svc-head{display:none}
+  nav ul{display:none}
+  .test{grid-template-columns:40px 1fr;row-gap:6px}.test .res{text-align:left;grid-column:2}.test .exp{grid-column:2}
+}
+@media (max-width:600px){
+  body{font-size:16px}
+  section{padding:80px 0}
+  .chips{grid-template-columns:repeat(2,1fr)}
+  .add-row{grid-template-columns:1fr 1fr}
+  .add-row .btn{grid-column:1/-1}
+  .kpis{grid-template-columns:1fr 1fr}
+  .bar{grid-template-columns:110px 1fr 40px}
+  .crop{display:none}
+  nav .btn{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .receipt{transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="inkbar" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="regmark" viewBox="0 0 32 32"><circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 2v28M2 16h28" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="3.5" fill="currentColor"/></symbol>
+</svg>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="PrintPro home"><svg class="reg"><use href="#regmark"/></svg>PrintPro</a>
+    <ul>
+      <li><a href="#services">Services</a></li>
+      <li><a href="#counter">Counter</a></li>
+      <li><a href="#billing">Billing</a></li>
+      <li><a href="#find">Find a bill</a></li>
+      <li><a href="#tests">Test cases</a></li>
+    </ul>
+    <a class="btn btn-ink" href="#counter">Take a job</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <canvas id="halftone" aria-hidden="true"></canvas>
+  <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+  <div class="wrap">
+    <div>
+      <h1 class="press" id="press" aria-label="Every print job, billed right.">
+        <span class="layer c" aria-hidden="true">Every print job, billed right.</span>
+        <span class="layer m" aria-hidden="true">Every print job, billed right.</span>
+        <span class="layer y" aria-hidden="true">Every print job, billed right.</span>
+        <span class="k" aria-hidden="true">Every print job, billed right.</span>
+      </h1>
+      <p class="lede">The counter system for the campus print shop. Take the order, apply the student or faculty discount, add GST, and send every customer to the right tray, without going over today's capacity.</p>
+      <div class="hero-cta">
+        <a class="btn btn-ink" href="#counter">Take a job</a>
+        <a class="btn btn-line" href="#billing">See how a bill is worked out</a>
+      </div>
+    </div>
+    <aside class="ticket" aria-label="Today at the counter">
+      <h3>Today at the counter</h3>
+      <dl>
+        <dt>Jobs billed</dt><dd id="tJobs">0</dd>
+        <dt>Revenue</dt><dd id="tRev">₹0.00</dd>
+        <dt>Most popular</dt><dd id="tPop">None yet</dd>
+        <dt>Shop queue</dt><dd id="tQueue">Free now</dd>
+      </dl>
+      <div class="next"><span>Next token</span><b id="tNext">1</b><span id="tTray">Tray 1</span></div>
+    </aside>
+  </div>
+</header>
+
+<div class="ribbon" aria-hidden="true"><div class="ribbon-track" id="ribbon"></div></div>
+
+<section id="services">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>What the shop can do today</h2>
+      <p>Each service has a daily limit. When fewer than 10 are left, it turns LOW so the counter knows to warn customers before taking the job.</p>
+    </div>
+    <div class="svc-list" id="svcList" role="table" aria-label="Service list"></div>
+  </div>
+</section>
+
+<section id="counter">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Take a job</h2>
+      <p>Enter the customer, add services by ID or by tapping them, then bill. The keyboard shortcuts match the console program: <span class="mono">-1</span> undoes the last service and <span class="mono">0</span> finishes the job.</p>
+    </div>
+    <div class="counter-grid">
+      <div class="panel">
+        <div>
+          <div class="step-title"><span class="n">1</span>Customer</div>
+          <div class="field">
+            <label for="custName">Name</label>
+            <input class="input" id="custName" autocomplete="off" placeholder="e.g. Asha Rao">
+          </div>
+          <div class="seg" role="group" aria-label="Customer type">
+            <button type="button" id="typeS" aria-pressed="true"><b>Student</b><span>10% discount</span></button>
+            <button type="button" id="typeF" aria-pressed="false"><b>Faculty</b><span>15% discount</span></button>
+          </div>
+        </div>
+
+        <div>
+          <div class="step-title"><span class="n">2</span>Services</div>
+          <div class="chips" id="chips"></div>
+          <form class="add-row" id="addForm" autocomplete="off">
+            <div class="field"><label for="svcId">Service ID</label><input class="input mono" id="svcId" inputmode="numeric" placeholder="101"></div>
+            <div class="field"><label for="svcQty">Quantity</label><input class="input mono" id="svcQty" inputmode="numeric" placeholder="1"></div>
+            <button class="btn btn-ink" type="submit">Add service</button>
+          </form>
+          <p class="hint">Type <code>-1</code> as the ID to undo, <code>0</code> to finish. Try <code>999</code> to see an unknown ID handled.</p>
+        </div>
+
+        <div>
+          <div class="step-title"><span class="n">3</span>Check and bill</div>
+          <div class="cart" id="cart"></div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn btn-ink" id="billBtn" disabled>Bill this job</button>
+            <button class="btn btn-line" id="undoBtn" disabled>Undo last service</button>
+            <button class="btn btn-ghost" id="clearBtn" disabled>Discard job</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="printer-col">
+        <div class="printer" id="printer">
+          <div class="printer-top"><span class="led"><i></i><span id="ledText">Ready</span></span><span class="mono">PP-80 thermal</span></div>
+          <div class="slot"></div>
+        </div>
+        <div class="paper-out" id="paperOut"><div class="printer-idle">Bills print here.</div></div>
+        <div class="trays">
+          <div class="tray-box"><h4>Tray 1 <span>odd tokens</span></h4><div class="tokens" id="tray1"></div></div>
+          <div class="tray-box"><h4>Tray 2 <span>even tokens</span></h4><div class="tokens" id="tray2"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="billing">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>How a bill is worked out</h2>
+      <p>The same four steps every time. Scroll through test case 1: a student printing 2 black and white pages and laminating 1 sheet.</p>
+    </div>
+    <div class="explain">
+      <div class="calc" aria-live="polite">
+        <h3>Asha, Student</h3>
+        <div class="line" data-k="0"><span>Subtotal</span><b>₹29.00</b></div>
+        <div class="line" data-k="1"><span>Discount (10%)</span><b>−₹2.90</b></div>
+        <div class="line" data-k="2"><span>GST (18%)</span><b>+₹4.70</b></div>
+        <div class="line final" data-k="3"><span>Total</span><b>₹30.80</b></div>
+      </div>
+      <div class="steps">
+        <div class="step" data-k="0"><div class="n">Step 1 of 4</div><h3>Add up every line</h3><p>Each service is price × quantity. The program adds the lines recursively: this line plus the total of the rest, until no lines are left.</p><div class="formula">2 × ₹2 + 1 × ₹25 = ₹29.00</div></div>
+        <div class="step" data-k="1"><div class="n">Step 2 of 4</div><h3>Take off the discount</h3><p>Students get 10% off and faculty 15%. Each customer type overrides the discount rate; the formula itself is a final method nobody can change.</p><div class="formula">₹29.00 × 10% = ₹2.90 off → ₹26.10</div></div>
+        <div class="step" data-k="2"><div class="n">Step 3 of 4</div><h3>Add 18% GST on what's left</h3><p>GST is charged on the discounted amount, not the original subtotal.</p><div class="formula">₹26.10 × 18% = ₹4.70</div></div>
+        <div class="step" data-k="3"><div class="n">Step 4 of 4</div><h3>Round to two decimals</h3><p>₹26.10 + ₹4.698 = ₹30.798, shown as ₹30.80. Token 1 is odd, so Asha collects from Tray 1.</p><div class="formula">token &amp; 1 = 1 → Tray 1</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="find" style="padding-top:40px">
+  <div class="wrap two">
+    <div>
+      <h2 style="margin-bottom:20px">Find a bill</h2>
+      <div class="find-box">
+        <form id="findForm" autocomplete="off">
+          <label for="findId" style="font-size:14px;color:var(--muted)">Job ID, like JOB1 or just 1</label>
+          <div class="find-row"><input class="input mono" id="findId" placeholder="JOB1"><button class="btn btn-ink" type="submit">Find bill</button></div>
+        </form>
+        <div id="findResult"></div>
+      </div>
+    </div>
+    <div>
+      <h2 style="margin-bottom:20px">End of day report</h2>
+      <div class="report" id="report"></div>
+    </div>
+  </div>
+</section>
+
+<section id="tests">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>The four test cases</h2>
+      <p>These run on a fresh shop, separate from today's jobs, so the results never touch your real capacity.</p>
+    </div>
+    <div class="tests" id="testList"></div>
+    <div class="test-actions"><button class="btn btn-ink" id="runTests">Run test cases</button><span id="testSummary"></span></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:block">
+    <div class="big-foot" aria-hidden="true">PrintPro</div>
+  </div>
+  <div class="wrap">
+    <span>PrintPro, built for the campus print shop. Java console program plus this web counter.</span>
+    <span>Data stays in this browser.</span>
+  </div>
+</footer>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   PrintPro billing core — mirrors the Java classes one-to-one
+   ===================================================================== */
+const GST = 0.18;          // final double GST = 0.18
+const LOW_LIMIT = 10;
+const SEED = [   // id, name, category, price, daily capacity, minutes per unit
+  [101, "B/W Print (page)",    "Print",     2,   500, 0.2],
+  [102, "Colour Print (page)", "Print",     10,  200, 0.5],
+  [103, "Spiral Binding",      "Binding",   40,  30,  5],
+  [104, "Hard Binding",        "Binding",   150, 10,  15],
+  [105, "Lamination (A4)",     "Finishing", 25,  50,  2],
+  [106, "Poster Print (A2)",   "Print",     120, 15,  4]
+];
+const fmtTime = ms => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+class PrintServiceNotFoundException extends Error {
+  constructor(id){ super(`Service ID ${id} does not exist. Pick one from the list above.`); this.name = "PrintServiceNotFoundException"; }
+}
+class CapacityExceededException extends Error {
+  constructor(name, req, left){ super(`${name}: ${req} requested, only ${left} left today. Nothing was changed.`); this.name = "CapacityExceededException"; }
+}
+
+const RATES = { S: 0.10, F: 0.15 };
+const TYPE_NAME = { S: "Student", F: "Faculty" };
+const round2 = v => Math.round(v * 100) / 100;
+const money = v => "₹" + v.toFixed(2);
+
+/** Own stack for undo (LIFO), array based */
+class ItemStack {
+  constructor(){ this.items = []; this.top = 0; }
+  push(it){ this.items[this.top++] = it; }
+  pop(){ if (this.top === 0) return null; const it = this.items[--this.top]; this.items[this.top] = undefined; return it; }
+  isEmpty(){ return this.top === 0; }
+  size(){ return this.top; }
+  toArray(){ return this.items.slice(0, this.top); }
+  clear(){ this.items = []; this.top = 0; }
+}
+
+function subtotalRec(lines, i = 0){ return i >= lines.length ? 0 : lines[i].price * lines[i].qty + subtotalRec(lines, i + 1); }
+
+function computeBill(type, lines){
+  const sub = subtotalRec(lines);
+  const disc = sub * RATES[type];
+  const after = sub - disc;
+  const gst = after * GST;
+  return { sub, disc, after, gst, total: round2(after + gst) };
+}
+
+class Shop {
+  constructor(state){
+    if (state) { Object.assign(this, state); return; }
+    this.services = SEED.map(([id,name,cat,price,cap,mpu]) => ({ id, name, cat, price, cap, mpu, left: cap, sold: 0 }));
+    this.jobs = [];
+    this.counter = 0;
+    this.queueFreeAt = Date.now();
+  }
+  findService(id){
+    const s = this.services.find(x => x.id === id);
+    if (!s) throw new PrintServiceNotFoundException(id);
+    return s;
+  }
+  checkCapacity(s, totalQty){
+    if (totalQty > s.left) throw new CapacityExceededException(s.name, totalQty, s.left);
+  }
+  /** all-or-nothing: validate every service first, then deduct */
+  acceptJob(name, type, items){
+    const want = {};
+    items.forEach(it => want[it.id] = (want[it.id] || 0) + it.qty);
+    for (const id in want) this.checkCapacity(this.findService(+id), want[id]);
+    for (const id in want) { const s = this.findService(+id); s.left -= want[id]; s.sold += want[id]; }
+    this.counter++;
+    const lines = items.map(it => { const s = this.findService(it.id); return { id: s.id, name: s.name, price: s.price, qty: it.qty }; });
+    const bill = computeBill(type, lines);
+    const minutes = this.workMinutes(items);
+    const start = Math.max(Date.now(), this.queueFreeAt || 0);
+    this.queueFreeAt = start + minutes * 60000;
+    const job = { id: "JOB" + this.counter, minutes, readyBy: fmtTime(this.queueFreeAt), token: this.counter, tray: (this.counter & 1) === 1 ? 1 : 2,
+                  name, type, lines, ...bill, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    this.jobs.push(job);
+    return job;
+  }
+  findJob(q){
+    let key = String(q).trim().toUpperCase();
+    if (!key.startsWith("JOB")) key = "JOB" + key;
+    return this.jobs.find(j => j.id === key) || null;
+  }
+  workMinutes(items){ return Math.max(1, Math.ceil(items.reduce((a, it) => a + it.qty * this.findService(it.id).mpu, 0))); }
+  queueMinutes(){ return Math.max(0, Math.floor(((this.queueFreeAt || 0) - Date.now()) / 60000)); }
+  revenue(){ return this.jobs.reduce((a, j) => a + j.total, 0); }
+  popular(){ let p = null; this.services.forEach(s => { if (s.sold > 0 && (!p || s.sold > p.sold)) p = s; }); return p; }
+}
+
+/* ---------- persistence (per browser) ---------- */
+const KEY = "printpro-day-v2";
+function load(){ try { const raw = localStorage.getItem(KEY); return raw ? new Shop(JSON.parse(raw)) : new Shop(); } catch(e){ return new Shop(); } }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(shop)); } catch(e){} }
+let shop = load();
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function toast(title, text, kind = "ok", action){
+  const t = document.createElement("div");
+  t.className = "toast " + (kind === "ok" ? "" : kind);
+  t.innerHTML = `<b>${esc(title)}</b>${esc(text)}`;
+  const close = () => { t.classList.add("out"); setTimeout(() => t.remove(), 300); };
+  if (action){
+    const b = document.createElement("button");
+    b.className = "toast-act"; b.textContent = action.label;
+    b.onclick = () => { action.run(); close(); };
+    t.appendChild(b);
+  }
+  $("#toasts").appendChild(t);
+  setTimeout(close, action ? 9000 : kind === "err" ? 5200 : 3400);
+}
+
+/* ---------- ticket ---------- */
+function renderTicket(){
+  $("#tJobs").textContent = shop.jobs.length;
+  $("#tRev").textContent = money(shop.revenue());
+  const p = shop.popular();
+  $("#tPop").textContent = p ? p.name.replace(/ \(.*\)/, "") : "None yet";
+  const q = shop.queueMinutes();
+  $("#tQueue").textContent = q ? q + " min" : "Free now";
+  const next = shop.counter + 1;
+  $("#tNext").textContent = next;
+  $("#tTray").textContent = "Tray " + ((next & 1) === 1 ? 1 : 2);
+}
+
+/* ---------- ribbon ---------- */
+function renderRibbon(){
+  const one = shop.services.map(s => `<span class="ribbon-item"><span class="id">${s.id}</span>${esc(s.name)} <span class="mono">${money(s.price)}</span><svg><use href="#regmark"/></svg></span>`).join("");
+  $("#ribbon").innerHTML = one + one;
+}
+
+/* ---------- service list ---------- */
+function renderServices(animate){
+  const head = `<div class="svc svc-head" role="row"><span>ID</span><span>Service</span><span>Category</span><span>Price</span><span>Left today</span><span>Status</span></div>`;
+  $("#svcList").innerHTML = head + shop.services.map(s => {
+    const low = s.left < LOW_LIMIT;
+    return `<div class="svc ${low ? "low" : ""}" role="row">
+      <span class="id">${s.id}</span><span class="name">${esc(s.name)}</span><span class="cat">${s.cat}</span>
+      <span class="price">${money(s.price)}</span>
+      <div class="cap"><div class="meter"><i style="--w:${s.left / s.cap}"></i></div><div class="meter-label">${s.left} of ${s.cap} left</div></div>
+      <span class="status">${low ? "LOW" : "OK"}</span></div>`;
+  }).join("");
+  const fill = () => document.querySelectorAll("#svcList .meter i").forEach(i => i.style.transform = `scaleX(${i.style.getPropertyValue("--w")})`);
+  if (animate === false || servicesSeen) requestAnimationFrame(fill); else pendingFill = fill;
+}
+let servicesSeen = false, pendingFill = null;
+
+/* ---------- chips ---------- */
+function renderChips(){
+  $("#chips").innerHTML = shop.services.map(s =>
+    `<button type="button" class="chip ${s.left < LOW_LIMIT ? "low" : ""}" data-id="${s.id}" title="${s.left} left today">
+      <span class="id">${s.id}</span><b>${esc(s.name)}</b><span class="p">${money(s.price)}</span></button>`).join("");
+}
+$("#chips").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  $("#svcId").value = c.dataset.id;
+  if (!$("#svcQty").value) $("#svcQty").value = 1;
+  $("#svcQty").focus(); $("#svcQty").select();
+});
+
+/* ---------- customer type ---------- */
+let custType = "S";
+function setType(t){
+  custType = t;
+  $("#typeS").setAttribute("aria-pressed", t === "S");
+  $("#typeF").setAttribute("aria-pressed", t === "F");
+  renderCart();
+}
+$("#typeS").onclick = () => setType("S");
+$("#typeF").onclick = () => setType("F");
+
+/* ---------- cart ---------- */
+const cart = new ItemStack();
+function cartQty(id){ return cart.toArray().filter(i => i.id === id).reduce((a, i) => a + i.qty, 0); }
+
+function renderCart(){
+  const items = cart.toArray();
+  if (!items.length){
+    $("#cart").innerHTML = `<div class="cart-empty">No services yet. Tap a service above or type its ID.</div>`;
+  } else {
+    const lines = items.map(i => { const s = shop.findService(i.id); return { ...i, name: s.name, price: s.price }; });
+    const b = computeBill(custType, lines);
+    $("#cart").innerHTML = lines.map((l, idx) =>
+      `<div class="cart-row" data-i="${idx}"><span>${esc(l.name)}</span><span class="q">${l.qty} × ${money(l.price)}</span><span class="amt">${money(l.qty * l.price)}</span></div>`).join("")
+      + `<div class="cart-foot"><span class="est">Subtotal <b>${money(b.sub)}</b></span><span class="est">Total with ${TYPE_NAME[custType].toLowerCase()} discount and GST <b>${money(b.total)}</b></span></div>`
+      + lowWarnings(items)
+      + `<div class="cart-warn" style="background:var(--paper)">Ready in about <b>${shop.workMinutes(items) + shop.queueMinutes()} min</b>${shop.queueMinutes() ? `, including ${shop.queueMinutes()} min of jobs already in the queue` : ", the shop is free now"}.</div>`;
+  }
+  $("#billBtn").disabled = !items.length;
+  $("#undoBtn").disabled = !items.length;
+  $("#clearBtn").disabled = !items.length;
+}
+
+document.addEventListener("input", e => e.target.classList && e.target.classList.remove("bad"));
+function lowWarnings(items){
+  const seen = {};
+  return items.filter(i => !seen[i.id] && (seen[i.id] = true)).map(i => {
+    const s = shop.findService(i.id), after = s.left - cartQty(i.id);
+    return (s.left >= LOW_LIMIT && after < LOW_LIMIT) ? `<div class="cart-warn">After this job <b>${esc(s.name)}</b> will be LOW: only ${after} left today.</div>` : "";
+  }).join("");
+}
+function bad(el){ el.classList.remove("bad"); void el.offsetWidth; el.classList.add("bad"); el.focus(); }
+
+function undo(){
+  const last = cart.pop();
+  if (!last){ toast("Nothing to undo", "The job has no services yet.", "warn"); return; }
+  const rows = document.querySelectorAll("#cart .cart-row");
+  const row = rows[rows.length - 1];
+  const after = () => { renderCart(); toast("Undone", `Removed ${last.qty} × ${shop.findService(last.id).name}.`); };
+  if (row && !reduced){ row.classList.add("out"); setTimeout(after, 280); } else after();
+}
+
+$("#addForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const idEl = $("#svcId"), qtyEl = $("#svcQty");
+  const idTxt = idEl.value.trim();
+  if (!/^-?\d+$/.test(idTxt)){ bad(idEl); toast("Not a number", `"${idTxt || "blank"}" isn't a service ID. Use digits, like 101.`, "warn"); return; }
+  const id = parseInt(idTxt, 10);
+  if (id === -1){ undo(); idEl.value = ""; return; }
+  if (id === 0){ idEl.value = ""; if (cart.isEmpty()) toast("Job is empty", "Add at least one service before finishing.", "warn"); else bill(); return; }
+  try {
+    const s = shop.findService(id);
+    const qTxt = qtyEl.value.trim() || "1";
+    if (!/^-?\d+$/.test(qTxt)){ bad(qtyEl); toast("Not a number", `Quantity "${qTxt}" must be a whole number.`, "warn"); return; }
+    const qty = parseInt(qTxt, 10);
+    if (qty <= 0){ bad(qtyEl); toast("Quantity too low", "Quantity must be 1 or more.", "warn"); return; }
+    shop.checkCapacity(s, cartQty(id) + qty);
+    cart.push({ id, qty });
+    renderCart();
+    idEl.value = ""; qtyEl.value = ""; idEl.focus();
+  } catch (err) {
+    if (err instanceof PrintServiceNotFoundException){ bad(idEl); toast(err.name, err.message, "err"); }
+    else if (err instanceof CapacityExceededException){
+      bad(qtyEl);
+      const s = shop.findService(id), canAdd = s.left - cartQty(id);
+      if (canAdd > 0){
+        toast(err.name, err.message + ` Only ${canAdd} more can be done today.`, "err",
+          { label: `Add ${canAdd} instead`, run(){ cart.push({ id, qty: canAdd }); renderCart(); idEl.value = ""; qtyEl.value = ""; qtyEl.classList.remove("bad"); toast("Added", `${canAdd} × ${s.name}, everything left for today.`); } });
+      } else toast(err.name, err.message, "err");
+    }
+    else throw err;
+  }
+});
+
+$("#undoBtn").onclick = undo;
+$("#clearBtn").onclick = () => { cart.clear(); renderCart(); toast("Job discarded", "No capacity was used."); };
+$("#billBtn").onclick = bill;
+
+/* ---------- receipt ---------- */
+function receiptHTML(j){
+  const lines = j.lines.map(l => `<div class="r"><span>${esc(l.name)}</span><span>${money(l.price * l.qty)}</span></div><div style="color:#777;margin:-4px 0 4px">  ${l.qty} × ${money(l.price)}</div>`).join("");
+  return `<div class="c h">PRINTPRO CAMPUS PRINT SHOP</div><div class="c">Tax invoice</div><div class="dash"></div>
+    <div class="r"><span>Job</span><span>${j.id}</span></div>
+    <div class="r"><span>Token</span><span>${j.token}</span></div>
+    <div class="r"><span>Customer</span><span>${esc(j.name)}</span></div>
+    <div class="r"><span>Type</span><span>${TYPE_NAME[j.type]}</span></div>
+    <div class="r"><span>Time</span><span>${j.time || ""}</span></div>
+    <div class="r"><span>Ready by</span><span>${j.readyBy || "-"}</span></div><div class="dash"></div>
+    ${lines}<div class="dash"></div>
+    <div class="r"><span>Subtotal</span><span>${money(j.sub)}</span></div>
+    <div class="r"><span>Discount ${Math.round(RATES[j.type] * 100)}%</span><span>−${money(j.disc)}</span></div>
+    <div class="r"><span>After discount</span><span>${money(j.after)}</span></div>
+    <div class="r"><span>GST 18%</span><span>+${money(j.gst)}</span></div><div class="dash"></div>
+    <div class="r tot"><span>TOTAL</span><span>${money(j.total)}</span></div>
+    <div class="tray">COLLECT AT TRAY ${j.tray}</div>`;
+}
+
+function bill(){
+  const nameEl = $("#custName");
+  const name = nameEl.value.trim();
+  if (!name){ bad(nameEl); toast("Name needed", "Enter the customer's name in step 1.", "warn"); return; }
+  if (cart.isEmpty()) return;
+  try {
+    const job = shop.acceptJob(name, custType, cart.toArray());
+    save();
+    cart.clear(); renderCart();
+    nameEl.value = "";
+    printReceipt(job);
+    refreshAll();
+    toast(`${job.id} billed`, `${money(job.total)}. Token ${job.token}, collect at Tray ${job.tray}, ready by ${job.readyBy}.`);
+  } catch (err) {
+    if (err instanceof CapacityExceededException || err instanceof PrintServiceNotFoundException){
+      toast("Job rejected", err.message, "err");
+    } else throw err;
+  }
+}
+
+function printReceipt(job){
+  const out = $("#paperOut"), pr = $("#printer");
+  out.innerHTML = `<div class="receipt" id="rc">${receiptHTML(job)}</div>`;
+  const rc = $("#rc");
+  pr.classList.remove("done"); pr.classList.add("busy"); $("#ledText").textContent = "Printing " + job.id;
+  if (reduced){ rc.classList.add("shown"); finish(); return; }
+  requestAnimationFrame(() => rc.classList.add("printing"));
+  rc.addEventListener("animationend", finish, { once: true });
+  function finish(){
+    pr.classList.remove("busy"); pr.classList.add("done"); $("#ledText").textContent = job.id + " printed";
+    dropToken(job, true);
+  }
+}
+
+function dropToken(job, fresh){
+  const el = document.createElement("div");
+  el.className = "tok";
+  if (!fresh) el.style.animation = "none";
+  el.innerHTML = `<span>${esc(job.name)}</span><b>#${job.token}</b>`;
+  $(job.tray === 1 ? "#tray1" : "#tray2").appendChild(el);
+}
+function renderTrays(){
+  $("#tray1").innerHTML = ""; $("#tray2").innerHTML = "";
+  shop.jobs.slice(-8).forEach(j => dropToken(j, false));
+}
+
+/* ---------- find ---------- */
+$("#findForm").addEventListener("submit", e => {
+  e.preventDefault();
+  showBill($("#findId").value);
+});
+function showBill(q){
+  const box = $("#findResult");
+  if (!String(q).trim()){ box.innerHTML = `<div class="msg">Enter a job ID, like JOB1.</div>`; return; }
+  if (!shop.jobs.length){ box.innerHTML = `<div class="msg">No bills yet today. Bill a job at the counter first.</div>`; return; }
+  const j = shop.findJob(q);
+  box.innerHTML = j ? `<div class="receipt">${receiptHTML(j)}</div>`
+    : `<div class="msg">No bill found for "${esc(q)}". Today's bills run from JOB1 to JOB${shop.counter}.</div>`;
+}
+
+/* ---------- report ---------- */
+function reportText(){
+  const p = shop.popular();
+  let t = "PRINTPRO - END OF DAY JOB REPORT\n" + "=".repeat(40) + "\n";
+  t += `Total jobs      : ${shop.jobs.length}\nTotal revenue   : Rs. ${shop.revenue().toFixed(2)}\nMost popular    : ${p ? p.name + " (" + p.sold + ")" : "None yet"}\n\n`;
+  t += "Service                  Sold   Left  Used  Status\n";
+  shop.services.forEach(s => t += `${s.name.padEnd(24)} ${String(s.sold).padStart(5)} ${String(s.left).padStart(6)} ${String(Math.round(s.sold * 100 / s.cap) + "%").padStart(5)}  ${s.left < LOW_LIMIT ? "LOW" : "OK"}\n`);
+  t += "\nJobs\n";
+  shop.jobs.forEach(j => t += `${j.id.padEnd(6)} token ${String(j.token).padEnd(3)} tray ${j.tray}  ${j.name.padEnd(18)} ${TYPE_NAME[j.type].padEnd(8)} Rs. ${j.total.toFixed(2)}\n`);
+  return t;
+}
+function renderReport(){
+  const p = shop.popular();
+  const max = Math.max(1, ...shop.services.map(s => s.sold));
+  let html = `<div class="kpis">
+    <div class="kpi"><div class="v" data-count="${shop.jobs.length}">${shop.jobs.length}</div><div class="l">Total jobs</div></div>
+    <div class="kpi"><div class="v">${money(shop.revenue())}</div><div class="l">Total revenue</div></div>
+    <div class="kpi pop"><div class="v">${p ? esc(p.name) : "None yet"}</div><div class="l">Most popular${p ? ", " + p.sold + " sold" : ""}</div></div></div>`;
+  html += `<div class="bars">` + shop.services.map(s =>
+    `<div class="bar ${p && p.id === s.id ? "top" : ""}"><span>${esc(s.name)}</span><div class="track"><div class="fill" data-w="${(s.sold / max) * 100}"></div></div><span class="num">${s.sold}<span style="color:#A3A9B1"> · ${Math.round(s.sold * 100 / s.cap)}%</span></span></div>`).join("") + `</div>`;
+  if (shop.jobs.length){
+    html += `<table class="jobs-table"><thead><tr><th>Job</th><th>Customer</th><th>Tray</th><th style="text-align:right">Total</th></tr></thead><tbody>` +
+      shop.jobs.slice().reverse().map(j => `<tr data-id="${j.id}" tabindex="0"><td class="m">${j.id}</td><td>${esc(j.name)} <span style="color:#A3A9B1">${TYPE_NAME[j.type]}</span></td><td class="m">${j.tray}</td><td class="m" style="text-align:right">${money(j.total)}</td></tr>`).join("") + `</tbody></table>`;
+  } else html += `<p class="empty-dark">No jobs yet. Bills you make at the counter show up here.</p>`;
+  html += `<div class="report-actions"><button class="btn btn-line" id="dlReport">Download report</button><button class="btn btn-line" id="cpReport">Copy report</button><button class="btn btn-ghost" id="closeDay" style="color:#A3A9B1">Close the day</button></div>`;
+  $("#report").innerHTML = html;
+  requestAnimationFrame(() => document.querySelectorAll("#report .fill").forEach(f => f.style.width = f.dataset.w + "%"));
+  $("#dlReport").onclick = () => {
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([reportText()], { type: "text/plain" }));
+      a.download = "DAY_REPORT.txt"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) { toast("Download blocked", "Use Copy report instead.", "warn"); }
+  };
+  $("#cpReport").onclick = async () => {
+    try { await navigator.clipboard.writeText(reportText()); toast("Report copied", "Paste it into any text file."); }
+    catch (e) { toast("Copy blocked", "Your browser didn't allow copying here.", "warn"); }
+  };
+  let closeArmed = 0;
+  $("#closeDay").onclick = () => {
+    const btn = $("#closeDay");
+    if (Date.now() - closeArmed > 4000){
+      closeArmed = Date.now(); btn.textContent = "Click again to clear today";
+      btn.style.color = "#F5C400";
+      setTimeout(() => { if (Date.now() - closeArmed >= 4000 && document.body.contains(btn)) { btn.textContent = "Close the day"; btn.style.color = "#A3A9B1"; } }, 4100);
+      return;
+    }
+    shop = new Shop(); save(); cart.clear(); refreshAll(); renderCart(); renderTrays();
+    $("#paperOut").innerHTML = `<div class="printer-idle">Bills print here.</div>`; $("#findResult").innerHTML = "";
+    toast("Day closed", "Capacity reset. Next token is 1.");
+  };
+  document.querySelectorAll("#report tbody tr").forEach(tr => {
+    const go = () => { $("#findId").value = tr.dataset.id; showBill(tr.dataset.id); $("#find").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }); };
+    tr.onclick = go; tr.onkeydown = e => { if (e.key === "Enter") go(); };
+  });
+}
+
+function refreshAll(){ renderTicket(); renderServices(false); renderChips(); renderReport(); renderRibbon(); }
+
+/* ---------- tests ---------- */
+const TESTS = [
+  { n: 1, title: "Student: 2 × B/W Print, 1 × Lamination", exp: "₹30.80",
+    run(){ const s = new Shop(); return money(s.acceptJob("Test", "S", [{id:101,qty:2},{id:105,qty:1}]).total) === "₹30.80" ? "₹30.80" : null; } },
+  { n: 2, title: "Faculty: 3 × Colour Print, 2 × Poster Print", exp: "₹270.81",
+    run(){ const s = new Shop(); const t = money(s.acceptJob("Test", "F", [{id:102,qty:3},{id:106,qty:2}]).total); return t === "₹270.81" ? t : null; } },
+  { n: 3, title: "Student: 201 × Colour Print", exp: "Capacity exceeded, 200 left",
+    run(){ const s = new Shop(); try { s.acceptJob("Test", "S", [{id:102,qty:201}]); return null; } catch(e){ return e instanceof CapacityExceededException && s.findService(102).left === 200 && s.jobs.length === 0 ? "Rejected, 200 left" : null; } } },
+  { n: 4, title: "Service ID 999", exp: "Service not found, keeps running",
+    run(){ const s = new Shop(); try { s.findService(999); return null; } catch(e){ return e instanceof PrintServiceNotFoundException ? "Not found, handled" : null; } } }
+];
+function renderTests(){
+  $("#testList").innerHTML = TESTS.map(t => `<div class="test"><span class="n">${t.n}</span><span>${t.title}</span><span class="exp">${t.exp}</span><span class="res" id="res${t.n}">Not run</span></div>`).join("");
+}
+$("#runTests").onclick = async () => {
+  let pass = 0; $("#runTests").disabled = true; $("#testSummary").textContent = "";
+  TESTS.forEach(t => { const r = $("#res" + t.n); r.className = "res run"; r.textContent = "…"; });
+  for (const t of TESTS){
+    await new Promise(r => setTimeout(r, reduced ? 0 : 450));
+    const r = $("#res" + t.n), got = t.run();
+    if (got){ pass++; r.className = "res pass"; r.textContent = "Pass"; } else { r.className = "res fail"; r.textContent = "Fail"; }
+  }
+  $("#testSummary").textContent = `${pass} of ${TESTS.length} passed.`;
+  $("#runTests").disabled = false;
+};
+
+setInterval(() => { renderTicket(); }, 30000);
+
+/* =====================================================================
+   Motion
+   ===================================================================== */
+/* hero: plates come into register */
+setTimeout(() => $("#press").classList.add("registered"), reduced ? 0 : 250);
+
+/* halftone field that swells under the cursor */
+(function halftone(){
+  const cv = $("#halftone"), ctx = cv.getContext("2d");
+  let w, h, dpr, mx = -999, my = -999, t = 0, raf;
+  const gap = 22;
+  function size(){ dpr = Math.min(devicePixelRatio || 1, 2); w = cv.clientWidth; h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+  function draw(){
+    ctx.clearRect(0, 0, w, h);
+    for (let y = gap / 2; y < h; y += gap){
+      for (let x = gap / 2; x < w; x += gap){
+        const fade = Math.max(0, (x / w - .35) / .65);           // only on the right side
+        const d = Math.hypot(x - mx, y - my);
+        const wave = Math.sin(x * .012 + y * .018 + t) * .5 + .5;
+        let r = fade * (1.2 + wave * 2.2) + Math.max(0, 1 - d / 170) * 7;
+        if (r < .4) continue;
+        ctx.beginPath(); ctx.arc(x, y, Math.min(r, gap / 2 - 1), 0, 6.283);
+        ctx.fillStyle = d < 170 ? "rgba(214,0,111,.55)" : "rgba(0,160,214,.28)";
+        ctx.fill();
+      }
+    }
+    t += .012;
+    if (!reduced) raf = requestAnimationFrame(draw);
+  }
+  addEventListener("resize", () => { size(); if (reduced) draw(); });
+  cv.parentElement.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect(); mx = e.clientX - r.left; my = e.clientY - r.top; if (reduced) draw(); });
+  cv.parentElement.addEventListener("pointerleave", () => { mx = my = -999; });
+  new IntersectionObserver(([en]) => { cancelAnimationFrame(raf); if (en.isIntersecting) draw(); }).observe(cv);
+  size(); draw();
+})();
+
+/* CMYK ink progress + nav border */
+const segs = document.querySelectorAll(".inkbar span");
+addEventListener("scroll", () => {
+  const p = scrollY / (document.documentElement.scrollHeight - innerHeight || 1);
+  segs.forEach((s, i) => s.style.transform = `scaleX(${Math.min(1, Math.max(0, p * 4 - i))})`);
+  $("#nav").classList.toggle("scrolled", scrollY > 10);
+}, { passive: true });
+
+/* services meters fill the first time they're seen */
+new IntersectionObserver((ens, o) => ens.forEach(en => { if (en.isIntersecting){ servicesSeen = true; pendingFill && pendingFill(); o.disconnect(); } }), { threshold: .3 }).observe($("#svcList"));
+
+/* billing walkthrough: scroll steps light up the matching line */
+(function(){
+  const calcLines = document.querySelectorAll(".calc .line");
+  const steps = document.querySelectorAll(".step");
+  const obs = new IntersectionObserver(ens => ens.forEach(en => {
+    if (!en.isIntersecting) return;
+    const k = +en.target.dataset.k;
+    steps.forEach(s => s.classList.toggle("on", +s.dataset.k === k));
+    calcLines.forEach(l => { l.classList.toggle("on", +l.dataset.k <= k); l.classList.toggle("focus", +l.dataset.k === k); });
+  }), { rootMargin: "-45% 0px -45% 0px" });
+  steps.forEach(s => obs.observe(s));
+
+  /* initial render */
+  renderTests(); renderCart(); renderServices(); renderChips(); renderRibbon(); renderTicket(); renderReport(); renderTrays();
+})();
+</script>
+</body>
+</html>

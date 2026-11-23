@@ -1,0 +1,61 @@
+PrintPro - AI_LOG.txt
+Team: R. Ramcharan, Prince Mittal R, VinayKumar N Goudar, P. Lakshmi Ganesh Raj, B. Jaswanth Reddy
+Tool used: Claude (Anthropic)
+=====================================================================
+
+[Edit the "What we changed" lines to match what YOUR team actually did.]
+
+#1  ~0:05  Asked: "Read the PrintPro problem statement and design the class structure
+            and packages for a Java 17 console app using arrays only."
+     AI gave: 6 packages - app, model, customer, billing, exception, util.
+     What we changed / checked: confirmed every Unit I-V item maps to a class; kept
+            the menu exactly as 1-5 from the PDF.
+
+#2  ~0:15  Asked: "Write PrintService with id, name, category, price, daily capacity
+            and a LOW/OK status using the ternary operator."
+     What we changed / checked: LOW limit as a constant (LOW_LIMIT = 10), added
+            remaining and soldToday fields for the report.
+
+#3  ~0:30  Asked: "Menu with do-while and switch; token counter with tray rule using & 1."
+     What we changed / checked: used classic switch with break (syllabus style).
+            Verified token 1 -> Tray 1, token 2 -> Tray 2.
+
+#4  ~0:45  Asked: "ItemStack class on an array for undo (-1); recursive subtotal."
+     What we changed / checked: stack grows by copying into a bigger array
+            (no ArrayList). Recursion base case = index past the last item.
+
+#5  ~0:55  Asked: "Billing: subtotal -> discount -> 18% GST on discounted amount."
+     Checked by hand:
+        Case 1: (2x2 + 1x25) = 29.00 -> -10% = 26.10 -> +18% = 30.798 = Rs. 30.80  OK
+        Case 2: (3x10 + 2x120) = 270.00 -> -15% = 229.50 -> +18% = 270.81        OK
+
+#6  ~1:10  Asked: "Person -> abstract Customer -> Student/Faculty, Billable interface,
+            one final method, toString()."
+     What we changed / checked: made calculateDiscount() the final method so the
+            formula can't be changed by a subclass; only the rate is overridden.
+
+#7  ~1:25  Asked: "Checked exceptions PrintServiceNotFoundException and
+            CapacityExceededException; show throw, throws, multi catch, nested try,
+            finally, try-with-resources."
+     What we changed / checked: acceptJob() validates ALL lines first and only then
+            deducts capacity, so a rejected job changes nothing (test case 3).
+
+#8  ~1:35  Asked: "Make input safe: letters, blanks, negatives, end of input."
+     What we changed / checked: InputReader loops until a valid number; negative
+            quantity shows a message; end of input exits cleanly with the report.
+
+#9  ~1:40  Ran tests\test_all_cases.txt - all 4 expected outputs matched.
+
+#10 ~1:50  Asked: "Improve the terminal UX" -> new Ui.java helper (colours, pauses,
+            service list shown inside New Job, running total). Checked tests still pass.
+
+#11        Asked: "Build a web version of the same billing logic" -> PrintPro-Web/index.html.
+
+#12        Asked: "Add innovation features" -> smart capacity offer, ready-by time with a
+            shop queue (minutes per unit), LOW-stock warning, capacity used % in report.
+     What we changed / checked: test file now answers N to the offer in case 3;
+            cases 1-4 still give 30.80 / 270.81 / rejected / not found.
+
+SURPRISE CHANGE (CP4, done WITHOUT AI):
+     Change asked by mentor: ____________________________________________
+     Files we edited:        ____________________________________________

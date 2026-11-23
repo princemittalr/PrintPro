@@ -1,0 +1,9 @@
+# build output and runtime files
+PrintPro/out/
+PrintPro/bills/
+*.class
+# Office lock files and local extras
+~$*
+Claude outputs/
+.DS_Store
+Thumbs.db
