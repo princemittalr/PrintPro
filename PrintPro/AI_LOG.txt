@@ -56,6 +56,18 @@ Tool used: Claude (Anthropic)
      What we changed / checked: test file now answers N to the offer in case 3;
             cases 1-4 still give 30.80 / 270.81 / rejected / not found.
 
+#13        Asked: "Create a 6-slide presentation with screenshots" -> PrintPro_Presentation.pptx
+            (console + website screenshots, test cases, Units I-V, team names).
+     What we changed / checked: updated slides 2, 3 and 5 after adding the new features.
+
+#14        Asked: "Create a project video with motion graphics and sound effects"
+            -> PrintPro_Video.mp4 (82 s, real console output and website screenshots).
+
+#15        Asked: "Push to GitHub and deploy the website" -> AI prepared README.md,
+            .gitignore and a redirect index.html; we pushed with git and turned on
+            GitHub Pages ourselves. Website "Close the day" now asks for a second click
+            and a "Copy report" button was added for hosts that block downloads.
+
 SURPRISE CHANGE (CP4, done WITHOUT AI):
      Change asked by mentor: ____________________________________________
      Files we edited:        ____________________________________________
